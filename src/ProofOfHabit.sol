@@ -121,10 +121,10 @@ contract ProofOfHabit is ReentrancyGuard {
      * - Less than one day has elapsed between the current block and the last check in
      *
      * @dev control flow for a user checking in
-     *
-     * *** 1.) the habit's checkedIn days is incremented ***
-     * *** 2.) the last checkin is set to the current block timestamp ***
-     * *** 3.) an event is emitted with the habit id, msg.sender and the new amount of checked in days ***
+     * *** 1.) the function checks if a user's checkin was more than a day ago. If it was, the habit is marked as failed and the user's ETH is transferred to the loss address ***
+     * *** 2.) the habit's checkedIn days is incremented ***
+     * *** 3.) the last checkin is set to the current block timestamp ***
+     * *** 4.) an event is emitted with the habit id, msg.sender and the new amount of checked in days ***
      */
     function userCheckIn(uint256 id) external {
         Habit storage habit = userHabits[msg.sender][id];
@@ -141,14 +141,16 @@ contract ProofOfHabit is ReentrancyGuard {
             revert ProofOfHabit__HabitAlreadyCompletedOrFailed();
         }
 
-        habit.checkedInDays++;
-        habit.lastCheckIn = block.timestamp;
-
-        if (habit.checkedInDays >= habit.howManyDays) {
-            habit.successful = true;
+        if (block.timestamp - habit.lastCheckIn > 1 days) {
+            lossAddressClaim(msg.sender, id);
+        } else {
+            habit.checkedInDays++;
+            habit.lastCheckIn = block.timestamp;
+            if (habit.checkedInDays >= habit.howManyDays) {
+                habit.successful = true;
+            }
+            emit CheckedIn(id, msg.sender, habit.checkedInDays);
         }
-        
-        emit CheckedIn(id, msg.sender, habit.checkedInDays);
     }
 
     /**
@@ -190,6 +192,7 @@ contract ProofOfHabit is ReentrancyGuard {
         emit FundsReturned(id, msg.sender);
     }
 
+
     /**
      * When a loss address can claim a user's ETH
      * @param user the address of the user who originally created the habit.
@@ -206,7 +209,7 @@ contract ProofOfHabit is ReentrancyGuard {
      * *** 2.) the ETH associated with the habit that was deposited by the user is transferred to the calling loss address ***
      * *** 3.) an event is emitted with the habit id, the user's address whose habit has failed, and the calling loss address ***
      */
-    function handleExpiry(address user, uint256 id) public {
+    function lossAddressClaim(address user, uint256 id) public {
         Habit storage habit = userHabits[user][id];
 
         if (msg.sender != habit.lossAddress) {

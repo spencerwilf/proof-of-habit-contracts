@@ -178,6 +178,10 @@ contract ProofOfHabitTest is Test {
         proofOfHabit.habitSuccessReturnFunds(0);
     }
 
+    function testLossAddressCanWithdrawUsersFunds() public {
+        
+    }
+
     fallback() external payable {}
     receive() external payable {}
 
