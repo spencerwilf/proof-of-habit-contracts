@@ -37,6 +37,7 @@ contract ProofOfHabitTest is Test {
         _;
     }
 
+
     function setUp() public returns (ProofOfHabit) {
         DeployProofOfHabit deployProofOfHabit = new DeployProofOfHabit();
         proofOfHabit = deployProofOfHabit.run();
@@ -130,6 +131,17 @@ contract ProofOfHabitTest is Test {
         proofOfHabit.userCheckIn(0);
     }
 
+    function testUsersEthTransfersToLossAddressIfMoreThanADayHasElapsed() accountForChainId public {
+        proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
+        for (uint i = 0; i < HABIT_DURATION - 1; i++) {
+            vm.warp(block.timestamp + 1 days);
+            proofOfHabit.userCheckIn(0);
+        }
+        vm.warp(block.timestamp + 2 days);
+        proofOfHabit.userCheckIn(0);
+        assertEq(proofOfHabit.getUserHabits()[0].lossAddress.balance, proofOfHabit.getUserHabits()[0].amount);
+    }
+
     function testUserCantCheckInForACompletedHabit() public accountForChainId successfulHabit {
         vm.warp(block.timestamp + 1 days);
         vm.expectRevert(ProofOfHabit.ProofOfHabit__HabitAlreadyCompletedOrFailed.selector);
@@ -168,7 +180,7 @@ contract ProofOfHabitTest is Test {
         proofOfHabit.habitSuccessReturnFunds(0);
     }
 
-    function userCantWithdrawWithoutEnoughCheckIns() public accountForChainId {
+    function testUserCantWithdrawWithoutEnoughCheckIns() public accountForChainId {
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
         for (uint i = 0; i < HABIT_DURATION - 1; i++) {
             vm.warp(block.timestamp + 1 days);
@@ -179,7 +191,7 @@ contract ProofOfHabitTest is Test {
     }
 
     function testLossAddressCanWithdrawUsersFunds() public {
-        
+
     }
 
     fallback() external payable {}

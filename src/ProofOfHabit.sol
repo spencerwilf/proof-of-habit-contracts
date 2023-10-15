@@ -212,7 +212,7 @@ contract ProofOfHabit is ReentrancyGuard {
     function lossAddressClaim(address user, uint256 id) public {
         Habit storage habit = userHabits[user][id];
 
-        if (msg.sender != habit.lossAddress) {
+        if ((msg.sender != habit.lossAddress) && (msg.sender != habit.proposer)) {
             revert ProofOfHabit__CallerNotLossAddress();
         }
 
