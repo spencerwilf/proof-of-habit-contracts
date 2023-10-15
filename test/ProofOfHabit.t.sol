@@ -52,9 +52,9 @@ contract ProofOfHabitTest is Test {
     }
 
     function testHabitCreation() public accountForChainId {
-        assert(proofOfHabit.getUserHabits().length == 0);
+        assert(proofOfHabit.getUserHabits(address(this)).length == 0);
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
-        assert(proofOfHabit.getUserHabits().length == 1);
+        assert(proofOfHabit.getUserHabits(address(this)).length == 1);
     }
 
     function testRevertsIfNotEnoughValueLocked() public {
@@ -74,42 +74,42 @@ contract ProofOfHabitTest is Test {
 
     function testHabitCreatesWithCorrectTitle() public accountForChainId {
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
-        assertEq(keccak256(bytes(proofOfHabit.getUserHabits()[0].title)), keccak256(bytes(HABIT_NAME)));
+        assertEq(keccak256(bytes(proofOfHabit.getUserHabits(address(this))[0].title)), keccak256(bytes(HABIT_NAME)));
     }
 
     function testHabitCreatesWithCorrectProposer() public accountForChainId {
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
-        assertEq(proofOfHabit.getUserHabits()[0].proposer, address(this));
+        assertEq(proofOfHabit.getUserHabits(address(this))[0].proposer, address(this));
     }
 
     function testHabitCreatesWithCorrectLossAddress() public accountForChainId {
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
-        assertEq(proofOfHabit.getUserHabits()[0].lossAddress, LOSS_ADDRESS);
+        assertEq(proofOfHabit.getUserHabits(address(this))[0].lossAddress, LOSS_ADDRESS);
     }
 
     function testHabitCreatesWithCorrectInProgressStatus() public accountForChainId {
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
-        assertEq(proofOfHabit.getUserHabits()[0].completed, false);
-        assertEq(proofOfHabit.getUserHabits()[0].failed, false);
-        assertEq(proofOfHabit.getUserHabits()[0].successful, false);
+        assertEq(proofOfHabit.getUserHabits(address(this))[0].completed, false);
+        assertEq(proofOfHabit.getUserHabits(address(this))[0].failed, false);
+        assertEq(proofOfHabit.getUserHabits(address(this))[0].successful, false);
     }
 
     function testHabitCreatesWithCorrectCheckedInDays() public accountForChainId {
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
-        assertEq(proofOfHabit.getUserHabits()[0].checkedInDays, 1);
+        assertEq(proofOfHabit.getUserHabits(address(this))[0].checkedInDays, 1);
     }
 
     function testHabitCreatesWithCorrectLastCheckIn() public accountForChainId {
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
-        assertEq(proofOfHabit.getUserHabits()[0].lastCheckIn, block.timestamp);
+        assertEq(proofOfHabit.getUserHabits(address(this))[0].lastCheckIn, block.timestamp);
     }
 
     function testUserCanCheckIn() public accountForChainId {
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
         vm.warp(block.timestamp + 25 hours);
         proofOfHabit.userCheckIn(0);
-        assertEq(proofOfHabit.getUserHabits()[0].checkedInDays, 2);
-        assertEq(proofOfHabit.getUserHabits()[0].lastCheckIn, block.timestamp);
+        assertEq(proofOfHabit.getUserHabits(address(this))[0].checkedInDays, 2);
+        assertEq(proofOfHabit.getUserHabits(address(this))[0].lastCheckIn, block.timestamp);
     }
 
     function testUserCantCheckInWithinADayOfPreviouslyCheckingIn() public accountForChainId {
@@ -126,7 +126,7 @@ contract ProofOfHabitTest is Test {
         }
         vm.warp(block.timestamp + 2 days);
         proofOfHabit.userCheckIn(0);
-        assertEq(proofOfHabit.getUserHabits()[0].lossAddress.balance, proofOfHabit.getUserHabits()[0].amount);
+        assertEq(proofOfHabit.getUserHabits(address(this))[0].lossAddress.balance, proofOfHabit.getUserHabits(address(this))[0].amount);
     }
 
     function testUserCantCheckInForACompletedHabit() public accountForChainId successfulHabit {
@@ -136,12 +136,12 @@ contract ProofOfHabitTest is Test {
 
     function testHabitSuccessFlipsToTrueAfterEnoughCheckIns() public accountForChainId {
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
-        assertEq(proofOfHabit.getUserHabits()[0].successful, false);
+        assertEq(proofOfHabit.getUserHabits(address(this))[0].successful, false);
         for (uint256 i = 0; i < HABIT_DURATION - 1; i++) {
             vm.warp(block.timestamp + 1 days);
             proofOfHabit.userCheckIn(0);
         }
-        assertEq(proofOfHabit.getUserHabits()[0].successful, true);
+        assertEq(proofOfHabit.getUserHabits(address(this))[0].successful, true);
     }
 
     function testUserCanWithdrawEthAfterSuccessfulHabit() public accountForChainId {
@@ -153,10 +153,10 @@ contract ProofOfHabitTest is Test {
             proofOfHabit.userCheckIn(0);
         }
         vm.warp(block.timestamp + (HABIT_DURATION * 1 days));
-        assertEq(proofOfHabit.getUserHabits()[0].amount, 0.01 ether);
+        assertEq(proofOfHabit.getUserHabits(address(this))[0].amount, 0.01 ether);
         proofOfHabit.habitSuccessReturnFunds(0);
         assertEq(USER.balance, 0.01 ether);
-        assertEq(proofOfHabit.getUserHabits()[0].completed, true);
+        assertEq(proofOfHabit.getUserHabits(address(this))[0].completed, true);
         vm.stopPrank();
     }
 

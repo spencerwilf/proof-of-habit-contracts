@@ -241,8 +241,8 @@ contract ProofOfHabit is ReentrancyGuard {
         return userHabits[msg.sender][id];
     }
 
-    function getUserHabits() external view returns (Habit[] memory) {
-        return userHabits[msg.sender];
+    function getUserHabits(address user) external view returns (Habit[] memory) {
+        return userHabits[user];
     }
 
     function getMinLockUp() external pure returns (uint256) {
