@@ -30,13 +30,12 @@ contract ProofOfHabitTest is Test {
 
     modifier successfulHabit() {
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
-        for (uint i = 0; i < HABIT_DURATION; i++) {
+        for (uint256 i = 0; i < HABIT_DURATION - 1; i++) {
             vm.warp(block.timestamp + 1 days);
             proofOfHabit.userCheckIn(0);
         }
         _;
     }
-
 
     function setUp() public returns (ProofOfHabit) {
         DeployProofOfHabit deployProofOfHabit = new DeployProofOfHabit();
@@ -53,11 +52,9 @@ contract ProofOfHabitTest is Test {
     }
 
     function testHabitCreation() public accountForChainId {
- 
-            assert(proofOfHabit.getUserHabits().length == 0);
-            proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
-            assert(proofOfHabit.getUserHabits().length == 1);
-        
+        assert(proofOfHabit.getUserHabits().length == 0);
+        proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
+        assert(proofOfHabit.getUserHabits().length == 1);
     }
 
     function testRevertsIfNotEnoughValueLocked() public {
@@ -78,26 +75,16 @@ contract ProofOfHabitTest is Test {
     function testHabitCreatesWithCorrectTitle() public accountForChainId {
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
         assertEq(keccak256(bytes(proofOfHabit.getUserHabits()[0].title)), keccak256(bytes(HABIT_NAME)));
-        
-    }
-
-    function testHabitCreatesWithCorrectExpiry() public accountForChainId {
-        proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
-        assertEq(proofOfHabit.getUserHabits()[0].expiry, block.timestamp + (HABIT_DURATION * 1 days));
     }
 
     function testHabitCreatesWithCorrectProposer() public accountForChainId {
-
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
         assertEq(proofOfHabit.getUserHabits()[0].proposer, address(this));
-        
     }
 
     function testHabitCreatesWithCorrectLossAddress() public accountForChainId {
-
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
         assertEq(proofOfHabit.getUserHabits()[0].lossAddress, LOSS_ADDRESS);
-        
     }
 
     function testHabitCreatesWithCorrectInProgressStatus() public accountForChainId {
@@ -109,31 +96,31 @@ contract ProofOfHabitTest is Test {
 
     function testHabitCreatesWithCorrectCheckedInDays() public accountForChainId {
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
-        assertEq(proofOfHabit.getUserHabits()[0].checkedInDays, 0);
+        assertEq(proofOfHabit.getUserHabits()[0].checkedInDays, 1);
     }
 
     function testHabitCreatesWithCorrectLastCheckIn() public accountForChainId {
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
-        assertEq(proofOfHabit.getUserHabits()[0].lastCheckIn, block.timestamp - 1 days);
+        assertEq(proofOfHabit.getUserHabits()[0].lastCheckIn, block.timestamp);
     }
 
     function testUserCanCheckIn() public accountForChainId {
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
+        vm.warp(block.timestamp + 25 hours);
         proofOfHabit.userCheckIn(0);
-        assertEq(proofOfHabit.getUserHabits()[0].checkedInDays, 1);
+        assertEq(proofOfHabit.getUserHabits()[0].checkedInDays, 2);
         assertEq(proofOfHabit.getUserHabits()[0].lastCheckIn, block.timestamp);
     }
 
     function testUserCantCheckInWithinADayOfPreviouslyCheckingIn() public accountForChainId {
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
-        proofOfHabit.userCheckIn(0);
         vm.expectRevert(ProofOfHabit.ProofOfHabit__UserCheckedInToday.selector);
         proofOfHabit.userCheckIn(0);
     }
 
-    function testUsersEthTransfersToLossAddressIfMoreThanADayHasElapsed() accountForChainId public {
+    function testUsersEthTransfersToLossAddressIfMoreThanADayHasElapsed() public accountForChainId {
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
-        for (uint i = 0; i < HABIT_DURATION - 1; i++) {
+        for (uint256 i = 0; i < HABIT_DURATION - 2; i++) {
             vm.warp(block.timestamp + 1 days);
             proofOfHabit.userCheckIn(0);
         }
@@ -143,30 +130,29 @@ contract ProofOfHabitTest is Test {
     }
 
     function testUserCantCheckInForACompletedHabit() public accountForChainId successfulHabit {
-        vm.warp(block.timestamp + 1 days);
         vm.expectRevert(ProofOfHabit.ProofOfHabit__HabitAlreadyCompletedOrFailed.selector);
         proofOfHabit.userCheckIn(0);
     }
 
-    function testHabitSuccessFlipsToTrueAfterEnoughCheckIns() public accountForChainId  {
+    function testHabitSuccessFlipsToTrueAfterEnoughCheckIns() public accountForChainId {
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
         assertEq(proofOfHabit.getUserHabits()[0].successful, false);
-        for (uint i = 0; i < HABIT_DURATION; i++) {
+        for (uint256 i = 0; i < HABIT_DURATION - 1; i++) {
             vm.warp(block.timestamp + 1 days);
             proofOfHabit.userCheckIn(0);
         }
         assertEq(proofOfHabit.getUserHabits()[0].successful, true);
     }
 
-
     function testUserCanWithdrawEthAfterSuccessfulHabit() public accountForChainId {
         vm.deal(USER, 0.01 ether);
         vm.startPrank(USER);
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
-        for (uint i = 0; i < HABIT_DURATION; i++) {
+        for (uint256 i = 0; i < HABIT_DURATION - 1; i++) {
             vm.warp(block.timestamp + 1 days);
             proofOfHabit.userCheckIn(0);
         }
+        vm.warp(block.timestamp + (HABIT_DURATION * 1 days));
         assertEq(proofOfHabit.getUserHabits()[0].amount, 0.01 ether);
         proofOfHabit.habitSuccessReturnFunds(0);
         assertEq(USER.balance, 0.01 ether);
@@ -182,19 +168,40 @@ contract ProofOfHabitTest is Test {
 
     function testUserCantWithdrawWithoutEnoughCheckIns() public accountForChainId {
         proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
-        for (uint i = 0; i < HABIT_DURATION - 1; i++) {
+        for (uint256 i = 0; i < HABIT_DURATION - 2; i++) {
+            // Adjusted loop condition to -2 as checkedInDays starts at 1
             vm.warp(block.timestamp + 1 days);
             proofOfHabit.userCheckIn(0);
         }
+        vm.warp(block.timestamp + (HABIT_DURATION * 1 days)); // This line simulates the total habit duration passing
         vm.expectRevert(ProofOfHabit.ProofOfHabit__NotEnoughCheckIns.selector);
-        proofOfHabit.habitSuccessReturnFunds(0);
+        proofOfHabit.habitSuccessReturnFunds(0); // This line should revert due to not enough check-ins
     }
 
     function testLossAddressCanWithdrawUsersFunds() public {
+        proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
+        for (uint256 i = 0; i < HABIT_DURATION - 2; i++) {
+            vm.warp(block.timestamp + 1 days);
+            proofOfHabit.userCheckIn(0);
+        }
+        vm.warp(block.timestamp + 2 days);
+        vm.prank(LOSS_ADDRESS);
+        proofOfHabit.lossAddressClaim(address(this), 0);
+        assertEq(LOSS_ADDRESS.balance, 0.01 ether);
+    }
 
+    function testOnlyLossAddressCanWithdrawUserFunds() public {
+        proofOfHabit.makeHabit{value: 0.01 ether}(HABIT_NAME, HABIT_DURATION, LOSS_ADDRESS);
+        for (uint256 i = 0; i < HABIT_DURATION - 2; i++) {
+            vm.warp(block.timestamp + 1 days);
+            proofOfHabit.userCheckIn(0);
+        }
+        vm.warp(block.timestamp + 2 days);
+        vm.prank(USER);
+        vm.expectRevert(ProofOfHabit.ProofOfHabit__CallerNotLossAddress.selector);
+        proofOfHabit.lossAddressClaim(address(this), 0);
     }
 
     fallback() external payable {}
     receive() external payable {}
-
 }

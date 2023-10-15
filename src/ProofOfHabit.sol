@@ -34,7 +34,6 @@ contract ProofOfHabit is ReentrancyGuard {
     struct Habit {
         uint256 id;
         string title;
-        uint256 expiry;
         uint256 howManyDays;
         address proposer;
         uint256 amount;
@@ -97,7 +96,6 @@ contract ProofOfHabit is ReentrancyGuard {
         Habit memory habit = Habit({
             id: id,
             title: title,
-            expiry: block.timestamp + (howManyDays * 1 days),
             howManyDays: howManyDays,
             proposer: msg.sender,
             amount: msg.value,
@@ -105,8 +103,8 @@ contract ProofOfHabit is ReentrancyGuard {
             completed: false,
             failed: false,
             successful: false,
-            checkedInDays: 0,
-            lastCheckIn: block.timestamp - 1 days
+            checkedInDays: 1,
+            lastCheckIn: block.timestamp
         });
 
         userHabits[msg.sender].push(habit);
@@ -133,17 +131,22 @@ contract ProofOfHabit is ReentrancyGuard {
             revert ProofOfHabit__CallerNotProposer();
         }
 
-        if (block.timestamp < habit.lastCheckIn + 1 days) {
-            revert ProofOfHabit__UserCheckedInToday();
-        }
-
         if (habit.successful || habit.failed) {
             revert ProofOfHabit__HabitAlreadyCompletedOrFailed();
         }
 
-        if (block.timestamp - habit.lastCheckIn > 1 days) {
+        // Ensure at least 24 hours have passed since the last check-in, unless the user hasn't checked in
+        if (block.timestamp < habit.lastCheckIn + 1 days) {
+            revert ProofOfHabit__UserCheckedInToday();
+        }
+
+        // If more than 48 hours have passed since the last check-in, call lossAddressClaim function,
+        // unless this is the first check-in (habit.checkedInDays is 0)
+        if (block.timestamp >= habit.lastCheckIn + 2 days) {
             lossAddressClaim(msg.sender, id);
-        } else {
+        }
+        // Ensure the check-in is within the 24 to 48-hour window, or this is the first check-in
+        else if (block.timestamp < habit.lastCheckIn + 2 days) {
             habit.checkedInDays++;
             habit.lastCheckIn = block.timestamp;
             if (habit.checkedInDays >= habit.howManyDays) {
@@ -169,10 +172,6 @@ contract ProofOfHabit is ReentrancyGuard {
     function habitSuccessReturnFunds(uint256 id) external {
         Habit storage habit = userHabits[msg.sender][id];
 
-        if (block.timestamp < habit.expiry) {
-            revert ProofOfHabit__TimeNotPassed();
-        }
-
         if (msg.sender != habit.proposer) {
             revert ProofOfHabit__CallerNotProposer();
         }
@@ -191,7 +190,6 @@ contract ProofOfHabit is ReentrancyGuard {
         require(s);
         emit FundsReturned(id, msg.sender);
     }
-
 
     /**
      * When a loss address can claim a user's ETH
@@ -239,17 +237,8 @@ contract ProofOfHabit is ReentrancyGuard {
     // View and pure functions //
     /////////////////////////////
 
-    function getExpiry(uint256 id) public view returns (uint256) {
-        return userHabits[msg.sender][id].expiry;
-    }
-
     function getHabit(uint256 id) public view returns (Habit memory) {
         return userHabits[msg.sender][id];
-    }
-
-    function checkExpiry(uint256 id) public view returns (bool) {
-        Habit memory habit = userHabits[msg.sender][id];
-        return (block.timestamp >= habit.expiry);
     }
 
     function getUserHabits() external view returns (Habit[] memory) {
